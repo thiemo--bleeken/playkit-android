@@ -38,6 +38,8 @@ import com.kaltura.playkit.utils.Consts;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static com.kaltura.playkit.plugins.ads.AdEvent.Type.AD_BREAK_ENDED;
 import static com.kaltura.playkit.plugins.ads.AdEvent.Type.AD_BREAK_STARTED;
@@ -88,8 +90,12 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
     // Whether an ad is displayed.
     private boolean isAdDisplayed;
     private boolean isAdIsPaused;
-    private boolean isAdRequested = false;
-    private boolean isInitWaiting = false;
+    private boolean isAdIsBuffering;
+    private boolean isAdRequested   = false;
+    private boolean isInitWaiting   = false;
+
+    Timer timer = new Timer();
+    float previousPolledAdPosition = -1;
     ////////////////////
     private MessageBus messageBus;
 
@@ -440,16 +446,20 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
                 break;
             case ALL_ADS_COMPLETED:
                 log.d("AD_ALL_ADS_COMPLETED");
+                cancelCheckIfAdIsBuffering();
+                isAdIsBuffering = false;
                 messageBus.post(new AdEvent(AdEvent.Type.ALL_ADS_COMPLETED));
                 player.getView().showVideoSurface();
                 if (adsManager != null) {
                     log.d("AD_ALL_ADS_COMPLETED onDestroy");
                     onDestroy();
                 }
-
                 break;
             case STARTED:
                 log.d("AD STARTED");
+                previousPolledAdPosition = -1;
+                isAdIsBuffering = false;
+                checkIfAdIsBuffering();
                 isAdIsPaused = false;
                 adInfo = createAdInfo(adEvent.getAd());
                 messageBus.post(new AdEvent.AdStartedEvent(adInfo));
@@ -466,6 +476,8 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
                 break;
             case COMPLETED:
                 log.d("AD COMPLETED");
+                isAdIsBuffering = false;
+                cancelCheckIfAdIsBuffering();
                 messageBus.post(new AdEvent(AdEvent.Type.COMPLETED));
                 break;
             case FIRST_QUARTILE:
@@ -624,9 +636,43 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
             default:
                 messageBus.post(new AdError(AdError.Type.UNKNOWN_ERROR, errorMessage));
         }
+        cancelCheckIfAdIsBuffering();
+        isAdIsBuffering = false;
         if (player != null && player.getView() != null) {
             player.getView().showVideoSurface();
             player.play();
         }
+    }
+
+    private void checkIfAdIsBuffering() {
+        timer.scheduleAtFixedRate( new TimerTask() {
+            public void run() {
+                try{
+                    float currentTime = adsManager.getAdProgress().getCurrentTime();
+                    if (!isAdIsPaused && previousPolledAdPosition == currentTime) {
+                        if (!isAdIsBuffering) {
+                            log.d("AD BUFFERING START");
+                            messageBus.post(new AdEvent(AdEvent.Type.AD_BUFFER_START));
+                            isAdIsBuffering = true;
+                        }
+                    } else {
+                        if (isAdIsBuffering) {
+                            log.d("AD BUFFERING END");
+                            messageBus.post(new AdEvent(AdEvent.Type.AD_BUFFER_END));
+                            isAdIsBuffering = false;
+                        }
+                    }
+                    previousPolledAdPosition = currentTime;
+                    log.d("POLL AD POSITION current position = " + currentTime);
+                }
+                catch (Exception e) {
+                   log.e("scheduleAtFixedRate failed " + e.getMessage());
+                }
+            }
+        }, 0, 1500);
+    }
+
+    private void cancelCheckIfAdIsBuffering() {
+        timer.cancel();
     }
 }

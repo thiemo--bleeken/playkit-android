@@ -54,6 +54,8 @@ public class AdEvent implements PKEvent {
         ICON_TAPPED,
         AD_BREAK_READY,
         AD_PROGRESS,
+        AD_BUFFER_START,
+        AD_BUFFER_END,
         AD_BREAK_STARTED,
         AD_BREAK_ENDED,
         CUEPOINTS_CHANGED,
