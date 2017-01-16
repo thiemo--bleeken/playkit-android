@@ -94,7 +94,7 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
     private boolean isAdRequested   = false;
     private boolean isInitWaiting   = false;
 
-    Timer timer = new Timer();
+    Timer timer;
     float previousPolledAdPosition = -1;
     ////////////////////
     private MessageBus messageBus;
@@ -645,6 +645,7 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
     }
 
     private void checkIfAdIsBuffering() {
+        timer = new Timer();
         timer.scheduleAtFixedRate( new TimerTask() {
             public void run() {
                 try{
@@ -673,6 +674,8 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
     }
 
     private void cancelCheckIfAdIsBuffering() {
-        timer.cancel();
+        if (timer != null) {
+            timer.cancel();
+        }
     }
 }
