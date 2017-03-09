@@ -225,6 +225,8 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
         if (adConfig.getVideoBitrate() != -1) {
             renderingSettings.setBitrateKbps(adConfig.getVideoBitrate());
         }
+
+        renderingSettings.setEnablePreloading(true);
     }
 
     private void imaSettingSetup() {
@@ -387,6 +389,7 @@ public class IMAPlugin extends PKPlugin implements AdsProvider, com.google.ads.i
         // Create the ads request.
         final AdsRequest request = sdkFactory.createAdsRequest();
         request.setAdTagUrl(adTagUrl);
+        request.setAdWillAutoPlay(true);
         request.setAdDisplayContainer(adDisplayContainer);
         request.setContentProgressProvider(new ContentProgressProvider() {
             @Override
